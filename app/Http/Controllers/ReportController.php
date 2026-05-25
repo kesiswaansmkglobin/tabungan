@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Exports\StudentsExport;
+use App\Http\Controllers\Concerns\HasWaliKelasScope;
 use App\Models\ClassRoom;
 use App\Models\SchoolData;
 use App\Models\Student;
@@ -15,30 +16,20 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class ReportController extends Controller
 {
+    use HasWaliKelasScope;
+
     public function index(Request $request): \Inertia\Response
     {
-        $user = auth()->user();
-        $isWaliKelas = $user->hasRole('wali_kelas');
-        $allowedClassIds = $isWaliKelas ? $user->classes()->pluck('id') : null;
+        $classes = $this->scopeClassesForCurrentUser(
+            ClassRoom::select('id', 'name')
+        )->get();
 
-        $classQuery = ClassRoom::select('id', 'name');
-        if ($isWaliKelas) {
-            $classQuery->whereIn('id', $allowedClassIds);
-        }
-        $classes = $classQuery->get();
-
-        $query = Student::with('class:id,name')
-            ->withCount('transactions');
-
-        if ($request->filled('class_id') && ! $isWaliKelas) {
-            $query->where('class_id', $request->class_id);
-        }
-
-        if ($isWaliKelas) {
-            $query->whereIn('class_id', $allowedClassIds);
-        }
-
-        $students = $query->orderBy('class_id')->orderBy('name')->get();
+        $students = $this->scopeStudentsByClass(
+            $this->scopeStudentsForCurrentUser(
+                Student::with('class:id,name')->withCount('transactions')
+            ),
+            $request->class_id
+        )->orderBy('class_id')->orderBy('name')->get();
 
         return Inertia::render('Reports', [
             'classes' => $classes,
@@ -49,21 +40,18 @@ class ReportController extends Controller
 
     public function exportExcel(Request $request): BinaryFileResponse
     {
-        $user = auth()->user();
-        $isWaliKelas = $user->hasRole('wali_kelas');
-        $allowedClassIds = $isWaliKelas ? $user->classes()->pluck('id') : null;
-
         $filters = $request->validate([
             'class_id' => 'nullable|exists:classes,id',
         ]);
 
-        if ($isWaliKelas) {
-            $filters['class_ids'] = $allowedClassIds->toArray();
+        if ($this->isWaliKelas()) {
+            $filters['class_ids'] = $this->allowedClassIds()->toArray();
         }
 
-        $filename = now()->format('Ymd_His').'_rekap_saldo.xlsx';
-
-        return Excel::download(new StudentsExport($filters), $filename);
+        return Excel::download(
+            new StudentsExport($filters),
+            now()->format('Ymd_His').'_rekap_saldo.xlsx'
+        );
     }
 
     public function exportPdf(Request $request): Response
@@ -72,21 +60,12 @@ class ReportController extends Controller
             'class_id' => 'nullable|exists:classes,id',
         ]);
 
-        $user = auth()->user();
-        $isWaliKelas = $user->hasRole('wali_kelas');
-        $allowedClassIds = $isWaliKelas ? $user->classes()->pluck('id') : null;
-
-        $query = Student::with('class:id,name');
-
-        if ($request->filled('class_id') && ! $isWaliKelas) {
-            $query->where('class_id', $request->class_id);
-        }
-
-        if ($isWaliKelas) {
-            $query->whereIn('class_id', $allowedClassIds);
-        }
-
-        $students = $query->orderBy('class_id')->orderBy('name')->get();
+        $students = $this->scopeStudentsByClass(
+            $this->scopeStudentsForCurrentUser(
+                Student::with('class:id,name')
+            ),
+            $request->class_id
+        )->orderBy('class_id')->orderBy('name')->get();
 
         $school = SchoolData::first();
 
@@ -101,10 +80,8 @@ class ReportController extends Controller
 
     public function bukuTabungan(Student $student): Response
     {
-        $user = auth()->user();
-        if ($user->hasRole('wali_kelas')) {
-            $allowedClassIds = $user->classes()->pluck('id');
-            abort_if(! $allowedClassIds->contains($student->class_id), 403, 'Anda tidak memiliki akses ke siswa ini.');
+        if ($this->isWaliKelas() && ! $this->allowedClassIds()->contains($student->class_id)) {
+            abort(403, 'Anda tidak memiliki akses ke siswa ini.');
         }
 
         $student->load('class:id,name');

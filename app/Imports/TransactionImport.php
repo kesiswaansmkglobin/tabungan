@@ -148,34 +148,41 @@ class TransactionImport implements SkipsEmptyRows, ToCollection, WithBatchInsert
         $studentIds = Student::whereHas('transactions')->pluck('id');
 
         foreach ($studentIds as $id) {
-            $balance = Transaction::where('student_id', $id)
+            $runningBalance = 0;
+            $updates = [];
+
+            $transactions = Transaction::where('student_id', $id)
                 ->orderBy('transaction_date')
                 ->orderBy('id')
-                ->get()
-                ->reduce(function ($carry, $t) {
-                    return $carry + ($t->type === 'setor' ? $t->amount : -$t->amount);
-                }, 0);
+                ->get(['id', 'type', 'amount', 'balance_after']);
 
-            Student::where('id', $id)->update(['balance' => $balance]);
-            Transaction::where('student_id', $id)
-                ->orderBy('transaction_date')
-                ->orderBy('id')
-                ->each(function ($t, $index) use ($id) {
-                    $prevBalance = Transaction::where('student_id', $id)
-                        ->where(function ($q) use ($t) {
-                            $q->where('transaction_date', '<', $t->transaction_date)
-                                ->orWhere(function ($q) use ($t) {
-                                    $q->where('transaction_date', $t->transaction_date)
-                                        ->where('id', '<', $t->id);
-                                });
-                        })
-                        ->sum(DB::raw("CASE WHEN type = 'setor' THEN amount ELSE -amount END"));
+            foreach ($transactions as $t) {
+                $runningBalance += $t->type === 'setor' ? $t->amount : -$t->amount;
+                if ($t->balance_after !== $runningBalance) {
+                    $updates[] = [
+                        'id' => $t->id,
+                        'balance_after' => $runningBalance,
+                    ];
+                }
+            }
 
-                    $balanceAfter = $prevBalance + ($t->type === 'setor' ? $t->amount : -$t->amount);
-                    if ($t->balance_after !== $balanceAfter) {
-                        Transaction::where('id', $t->id)->update(['balance_after' => $balanceAfter]);
-                    }
-                });
+            Student::where('id', $id)->update(['balance' => $runningBalance]);
+
+            foreach (array_chunk($updates, 100) as $chunk) {
+                $cases = [];
+                $ids = [];
+                foreach ($chunk as $u) {
+                    $cases[] = "WHEN {$u['id']} THEN {$u['balance_after']}";
+                    $ids[] = $u['id'];
+                }
+                if (! empty($cases)) {
+                    DB::statement(
+                        'UPDATE transactions SET balance_after = CASE id '
+                        .implode(' ', $cases)
+                        .' END WHERE id IN ('.implode(',', $ids).')'
+                    );
+                }
+            }
         }
     }
 
