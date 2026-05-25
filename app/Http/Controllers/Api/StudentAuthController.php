@@ -8,6 +8,7 @@ use App\Services\GamificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 
 class StudentAuthController extends Controller
 {
@@ -19,9 +20,14 @@ class StudentAuthController extends Controller
     {
         $validated = $request->validate([
             'nis' => 'required|string|exists:students,nis',
+            'password' => 'required|string',
         ]);
 
         $student = Student::where('nis', $validated['nis'])->first();
+
+        if (! $student || ! Hash::check($validated['password'], $student->password)) {
+            return response()->json(['message' => 'NIS atau password salah.'], 401);
+        }
 
         $token = $student->createToken('student-api')->plainTextToken;
 
@@ -73,6 +79,13 @@ class StudentAuthController extends Controller
         });
 
         return response()->json($transactions);
+    }
+
+    public function logout(Request $request): JsonResponse
+    {
+        $request->user()->currentAccessToken()->delete();
+
+        return response()->json(['message' => 'Logout berhasil.']);
     }
 
     public function dashboard(Request $request): JsonResponse

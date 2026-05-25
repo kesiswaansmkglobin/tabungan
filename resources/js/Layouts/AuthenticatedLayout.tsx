@@ -16,6 +16,7 @@ const navItems: NavItem[] = [
     { label: 'Kelas', href: '/admin/classes', icon: 'users-group', roles: ['admin'] },
     { label: 'Siswa', href: '/admin/students', icon: 'student', roles: ['admin', 'staff'] },
     { label: 'Transaksi', href: '/transactions', icon: 'cash', roles: ['admin', 'staff'] },
+    { label: 'Siswa Saya', href: '/wali-kelas/students', icon: 'student', roles: ['wali_kelas'] },
     { label: 'Riwayat', href: '/history', icon: 'clock', roles: ['admin', 'staff', 'wali_kelas'] },
     { label: 'Laporan', href: '/reports', icon: 'chart', roles: ['admin', 'staff', 'wali_kelas'] },
     { label: 'Gamifikasi', href: '/admin/gamification', icon: 'trophy', roles: ['admin'] },

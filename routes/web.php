@@ -13,6 +13,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\Student\AuthController;
 use App\Http\Controllers\TransactionController;
+use App\Http\Controllers\WaliKelasController;
 use App\Models\Student;
 use App\Models\Transaction;
 use Illuminate\Foundation\Application;
@@ -35,7 +36,7 @@ Route::get('/dashboard', function () {
     $allowedClassIds = $isWaliKelas ? $user->classes()->pluck('id') : null;
 
     $cacheKey = 'dashboard_stats_'.($isWaliKelas ? 'wk_'.$user->id : 'admin');
-    $dashboardStats = Cache::remember($cacheKey, 300, function () use ($isWaliKelas, $allowedClassIds) {
+    $dashboardStats = Cache::remember($cacheKey, 60, function () use ($isWaliKelas, $allowedClassIds) {
         $studentQuery = Student::query();
         $transactionQuery = Transaction::query();
 
@@ -114,7 +115,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::post('/students/import', [StudentController::class, 'import'])->name('students.import');
     Route::get('/students/template', [StudentController::class, 'downloadTemplate'])->name('students.template');
     Route::get('/students/{student}/qrcode', [StudentController::class, 'qrCode'])->name('students.qrcode');
-    Route::get('/students/{student}/qrcode/download', [StudentController::class, 'qrCodeDownload'])->name('students.qrcode.download');
+    Route::get('/students/{student}/qrcode/download', [StudentController::class, 'qrCode'])->name('students.qrcode.download');
 
     Route::get('/users', [UserController::class, 'index'])->name('users');
     Route::post('/users', [UserController::class, 'store'])->name('users.store');
@@ -150,6 +151,8 @@ Route::middleware(['auth', 'role:admin,staff'])->group(function () {
     Route::patch('/transactions/{transaction}', [TransactionController::class, 'update'])->name('transactions.update');
     Route::delete('/transactions/{transaction}', [TransactionController::class, 'destroy'])->name('transactions.destroy');
     Route::get('/transactions/student/{student}', [TransactionController::class, 'getStudent'])->name('transactions.student');
+    Route::post('/transactions/import', [TransactionController::class, 'import'])->name('transactions.import');
+    Route::get('/transactions/template', [TransactionController::class, 'downloadTemplate'])->name('transactions.template');
 });
 
 Route::middleware(['auth', 'role:admin,staff,wali_kelas'])->group(function () {
@@ -161,6 +164,8 @@ Route::middleware(['auth', 'role:admin,staff,wali_kelas'])->group(function () {
     Route::get('/reports/excel', [ReportController::class, 'exportExcel'])->name('reports.excel');
     Route::get('/reports/pdf', [ReportController::class, 'exportPdf'])->name('reports.pdf');
     Route::get('/reports/buku-tabungan/{student}', [ReportController::class, 'bukuTabungan'])->name('reports.buku-tabungan');
+
+    Route::get('/wali-kelas/students', [WaliKelasController::class, 'students'])->name('wali-kelas.students');
 });
 
 Route::prefix('student')->name('student.')->group(function () {

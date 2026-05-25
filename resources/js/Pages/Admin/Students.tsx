@@ -255,6 +255,15 @@ export default function Students({ students, classes, filters, canManage = true 
                                             Lihat QR
                                         </button>
                                     </td>
+                                    <td className="px-4 py-3">
+                                        <a
+                                            href={route('reports.buku-tabungan', s.id)}
+                                            className="text-sm text-navy-600 hover:text-navy-700 dark:text-navy-300"
+                                            target="_blank"
+                                        >
+                                            Cetak Buku Tabungan
+                                        </a>
+                                    </td>
                                     {canManage && (
                                         <td className="px-4 py-3">
                                             <div className="flex gap-2">

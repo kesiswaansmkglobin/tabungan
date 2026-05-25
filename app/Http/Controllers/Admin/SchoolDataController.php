@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\SchoolData;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -62,8 +63,8 @@ class SchoolDataController extends Controller
         };
 
         $oldPath = $school->$field;
-        if ($oldPath && \Storage::disk('public')->exists($oldPath)) {
-            \Storage::disk('public')->delete($oldPath);
+        if ($oldPath && Storage::disk('public')->exists($oldPath)) {
+            Storage::disk('public')->delete($oldPath);
         }
 
         $school->update([$field => null]);

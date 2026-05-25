@@ -91,6 +91,11 @@ class SettingsController extends Controller
 
             file_put_contents($path, $sql);
 
+            activity()
+                ->causedBy(auth()->user())
+                ->withProperties(['filename' => $filename, 'size' => strlen($sql)])
+                ->log('backup');
+
             return response()->download($path, $filename)->deleteFileAfterSend(true);
         } catch (\Exception $e) {
             if ($request->expectsJson()) {
@@ -145,13 +150,34 @@ class SettingsController extends Controller
             return back()->with('error', 'File backup kosong atau tidak terbaca.');
         }
 
-        // Tambahkan DROP TABLE IF EXISTS sebelum CREATE TABLE jika belum ada
-        // (kompatibel dengan file backup lama yang tidak menyertakannya)
+        $dangerous = ['DROP DATABASE', 'DROP USER', 'GRANT', 'REVOKE', 'CREATE USER',
+            'ALTER USER', 'CREATE DATABASE', 'ALTER DATABASE',
+            'SELECT INTO OUTFILE', 'INTO DUMPFILE', 'LOAD DATA',
+            'CREATE FUNCTION', 'CREATE PROCEDURE', 'CREATE EVENT', 'CREATE TRIGGER',
+            'SLAVE', 'MASTER', 'SUPER', 'FILE', 'PROCESS',
+        ];
+
+        $upper = strtoupper(preg_replace('/\s+/', ' ', $sqlContent));
+        foreach ($dangerous as $keyword) {
+            if (str_contains($upper, $keyword)) {
+                activity()
+                    ->causedBy(auth()->user())
+                    ->withProperties(['file' => $request->file('file')->getClientOriginalName()])
+                    ->log('restore_ditolak');
+
+                return back()->with('error', 'File backup mengandung perintah SQL yang tidak diizinkan.');
+            }
+        }
+
         $sqlContent = preg_replace(
             '/^CREATE TABLE\s+(`[^`]+`)/im',
             "DROP TABLE IF EXISTS $1;\nCREATE TABLE $1",
             $sqlContent
         );
+
+        if (DB::connection()->getDriverName() !== 'mysql') {
+            return back()->with('error', 'Restore hanya mendukung database MySQL.');
+        }
 
         try {
             DB::statement('SET FOREIGN_KEY_CHECKS = 0');
@@ -181,9 +207,21 @@ class SettingsController extends Controller
 
             DB::statement('SET FOREIGN_KEY_CHECKS = 1');
 
+            activity()
+                ->causedBy(auth()->user())
+                ->withProperties(['file' => $request->file('file')->getClientOriginalName()])
+                ->log('restore');
+
             return back()->with('success', 'Database berhasil direstore.');
         } catch (\Exception $e) {
-            DB::statement('SET FOREIGN_KEY_CHECKS = 1');
+            if (DB::connection()->getDriverName() === 'mysql') {
+                DB::statement('SET FOREIGN_KEY_CHECKS = 1');
+            }
+
+            activity()
+                ->causedBy(auth()->user())
+                ->withProperties(['error' => $e->getMessage()])
+                ->log('restore_gagal');
 
             return back()->with('error', 'Gagal restore database: '.$e->getMessage());
         }
@@ -203,7 +241,9 @@ class SettingsController extends Controller
         try {
             DB::beginTransaction();
 
-            DB::statement('SET FOREIGN_KEY_CHECKS = 0');
+            if (DB::connection()->getDriverName() === 'mysql') {
+                DB::statement('SET FOREIGN_KEY_CHECKS = 0');
+            }
 
             $tables = [
                 'offline_sync_keys',
@@ -217,12 +257,20 @@ class SettingsController extends Controller
 
             foreach ($tables as $table) {
                 DB::delete("DELETE FROM `{$table}`");
-                DB::statement("ALTER TABLE `{$table}` AUTO_INCREMENT = 1");
+                if (DB::connection()->getDriverName() === 'mysql') {
+                    DB::statement("ALTER TABLE `{$table}` AUTO_INCREMENT = 1");
+                }
             }
 
-            DB::statement('SET FOREIGN_KEY_CHECKS = 1');
+            if (DB::connection()->getDriverName() === 'mysql') {
+                DB::statement('SET FOREIGN_KEY_CHECKS = 1');
+            }
 
             DB::commit();
+
+            activity()
+                ->causedBy(auth()->user())
+                ->log('reset_data');
 
             return back()->with('success', 'Semua data siswa, kelas, dan transaksi berhasil dihapus.');
         } catch (\Exception $e) {
@@ -231,39 +279,5 @@ class SettingsController extends Controller
 
             return back()->with('error', 'Gagal mereset database: '.$e->getMessage());
         }
-    }
-
-    private function findBinary(string $name): string
-    {
-        if (PHP_OS_FAMILY === 'Windows') {
-            $laragonPath = 'C:\\laragon\\bin\\mysql\\';
-            $laragonMysqlDirs = glob($laragonPath.'mysql-*', GLOB_ONLYDIR);
-
-            $paths = [];
-
-            foreach ($laragonMysqlDirs as $dir) {
-                $paths[] = '"'.$dir.'\\bin\\'.$name.'.exe"';
-            }
-
-            $paths = array_merge($paths, [
-                '"C:\\xampp\\mysql\\bin\\'.$name.'.exe"',
-                '"C:\\Program Files\\MySQL\\MySQL Server 8.0\\bin\\'.$name.'.exe"',
-                '"C:\\Program Files\\MySQL\\MySQL Server 5.7\\bin\\'.$name.'.exe"',
-                '"C:\\Program Files (x86)\\MySQL\\MySQL Server 8.0\\bin\\'.$name.'.exe"',
-                '"C:\\Program Files (x86)\\MySQL\\MySQL Server 5.7\\bin\\'.$name.'.exe"',
-                $name.'.exe',
-            ]);
-
-            foreach ($paths as $p) {
-                $check = str_replace('"', '', $p);
-                if (file_exists($check) || ! str_contains($p, ':\\')) {
-                    return $p;
-                }
-            }
-
-            return $name.'.exe';
-        }
-
-        return $name;
     }
 }

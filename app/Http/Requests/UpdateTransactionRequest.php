@@ -8,7 +8,7 @@ class UpdateTransactionRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        return $this->user()->can('update', $this->route('transaction'));
     }
 
     public function rules(): array

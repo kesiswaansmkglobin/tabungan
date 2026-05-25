@@ -70,6 +70,7 @@ class WhatsAppService
 
         if (! $target) {
             Log::warning('[WhatsApp] Tidak ada nomor target', ['student_id' => $student->id]);
+
             return;
         }
 
@@ -80,6 +81,7 @@ class WhatsAppService
                 'student_id' => $student->id,
                 'target' => $target,
             ]);
+
             return;
         }
 
@@ -88,11 +90,13 @@ class WhatsAppService
                 'to' => $target,
                 'message' => $message,
             ]);
+
             return;
         }
 
         if ($this->driver !== 'fonnte' || ! $this->apiKey || ! $this->apiUrl) {
             Log::warning('[WhatsApp] Driver atau API key tidak dikonfigurasi');
+
             return;
         }
 
@@ -128,8 +132,9 @@ class WhatsAppService
     {
         $phone = preg_replace('/[^0-9]/', '', $phone);
         if (strlen($phone) > 0 && $phone[0] === '0') {
-            $phone = '62' . substr($phone, 1);
+            $phone = '62'.substr($phone, 1);
         }
+
         return $phone;
     }
 

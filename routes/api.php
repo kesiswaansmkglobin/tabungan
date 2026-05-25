@@ -9,4 +9,5 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/student/me', [StudentAuthController::class, 'me'])->name('api.student.me');
     Route::get('/student/transactions', [StudentAuthController::class, 'transactions'])->name('api.student.transactions');
     Route::get('/student/dashboard', [StudentAuthController::class, 'dashboard'])->name('api.student.dashboard');
+    Route::post('/student/logout', [StudentAuthController::class, 'logout'])->name('api.student.logout');
 });

@@ -32,7 +32,7 @@ class UserTest extends TestCase
         $response = $this->actingAs($this->admin)->post(route('admin.users.store'), [
             'name' => 'Staff Baru',
             'email' => 'staff@example.com',
-            'password' => 'password123',
+            'password' => 'Password123',
             'role' => 'staff',
         ]);
 
@@ -45,7 +45,7 @@ class UserTest extends TestCase
         $this->actingAs($this->admin)->post(route('admin.users.store'), [
             'name' => 'Staff Baru',
             'email' => 'staff@example.com',
-            'password' => 'password123',
+            'password' => 'Password123',
             'role' => 'staff',
         ]);
 
@@ -70,7 +70,7 @@ class UserTest extends TestCase
         $response = $this->actingAs($this->admin)->post(route('admin.users.store'), [
             'name' => 'Duplicate',
             'email' => $this->admin->email,
-            'password' => 'password123',
+            'password' => 'Password123',
             'role' => 'staff',
         ]);
 

@@ -39,7 +39,7 @@ class GamificationService
         $quests = Quest::where('active', true)
             ->where(function ($q) use ($event) {
                 $q->where('type', $event)
-                  ->when(in_array($event, ['deposit', 'withdrawal']), fn ($q) => $q->orWhereIn('type', [$event.'_count', 'streak']));
+                    ->when(in_array($event, ['deposit', 'withdrawal']), fn ($q) => $q->orWhereIn('type', [$event.'_count', 'streak']));
             })
             ->get();
 
@@ -122,7 +122,9 @@ class GamificationService
                 return $first->diffInDays($last) + 1 >= $targetDays;
             }
 
-            $daysBack = (int) ($criteria['period_days'] ?? match($criteria['period'] ?? '') {'weekly' => 7, 'monthly' => 30, 'yearly' => 365, default => 30});
+            $daysBack = (int) ($criteria['period_days'] ?? match ($criteria['period'] ?? '') {
+                'weekly' => 7, 'monthly' => 30, 'yearly' => 365, default => 30
+            });
 
             return $student->transactions()
                 ->where('transaction_date', '>=', now()->subDays($daysBack)->startOfDay())

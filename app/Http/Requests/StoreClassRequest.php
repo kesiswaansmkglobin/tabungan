@@ -2,13 +2,14 @@
 
 namespace App\Http\Requests;
 
+use App\Models\ClassRoom;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreClassRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        return $this->user()->can('create', ClassRoom::class);
     }
 
     public function rules(): array

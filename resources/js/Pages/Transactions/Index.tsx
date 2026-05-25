@@ -1,7 +1,7 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import Pagination from '@/Components/Pagination';
 import { Head, router, usePage } from '@inertiajs/react';
-import { FormEvent, useState } from 'react';
+import { FormEvent, useRef, useState } from 'react';
 
 interface Student {
     id: number;
@@ -41,6 +41,9 @@ export default function TransactionsIndex({
 }) {
     const { errors, flash } = usePage().props as any;
     const [showForm, setShowForm] = useState(false);
+    const [showImport, setShowImport] = useState(false);
+    const [processing, setProcessing] = useState(false);
+    const fileRef = useRef<HTMLInputElement>(null);
     const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
     const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
     const [selectedClassId, setSelectedClassId] = useState('');
@@ -59,6 +62,11 @@ export default function TransactionsIndex({
     function selectStudent(student: Student) {
         setSelectedStudent(student);
         setForm({ ...form, student_id: student.id.toString() });
+    }
+
+    function handleTypeChange(type: string) {
+        const note = type === 'setor' && !editingTransaction ? 'Setoran harian siswa' : (editingTransaction ? form.note : '');
+        setForm({ ...form, type, note });
     }
 
     function handleSubmit(e: FormEvent) {
@@ -103,7 +111,24 @@ export default function TransactionsIndex({
             type: 'setor',
             amount: '',
             transaction_date: new Date().toISOString().split('T')[0],
-            note: '',
+            note: 'Setoran harian siswa',
+        });
+    }
+
+    function handleImport(e: FormEvent) {
+        e.preventDefault();
+        const file = fileRef.current?.files?.[0];
+        if (!file) return;
+        setProcessing(true);
+        const data = new FormData();
+        data.append('file', file);
+        router.post(route('transactions.import'), data, {
+            forceFormData: true,
+            onSuccess: () => {
+                setShowImport(false);
+                if (fileRef.current) fileRef.current.value = '';
+            },
+            onFinish: () => setProcessing(false),
         });
     }
 
@@ -117,9 +142,14 @@ export default function TransactionsIndex({
             <div className="space-y-6">
                 <div className="flex items-center justify-between">
                     <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Transaksi</h1>
-                    <button onClick={() => editingTransaction ? closeForm() : setShowForm(!showForm)} className="btn-primary">
-                        {showForm ? 'Tutup' : 'Transaksi Baru'}
-                    </button>
+                    <div className="flex gap-2">
+                        <button onClick={() => setShowImport(true)} className="btn-secondary text-sm">
+                            Impor Excel
+                        </button>
+                        <button onClick={() => editingTransaction ? closeForm() : setShowForm(!showForm)} className="btn-primary">
+                            {showForm ? 'Tutup' : 'Transaksi Baru'}
+                        </button>
+                    </div>
                 </div>
 
                 {flash?.success && (
@@ -131,6 +161,40 @@ export default function TransactionsIndex({
                 {errors?.error && (
                     <div className="rounded-lg bg-red-50 p-4 text-sm text-red-700 dark:bg-red-900/30 dark:text-red-300">
                         {errors.error}
+                    </div>
+                )}
+
+                {showImport && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                        <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl dark:bg-navy-800">
+                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Impor Transaksi dari Excel</h3>
+                            <form onSubmit={handleImport} className="mt-4 space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">File Excel</label>
+                                    <input
+                                        type="file"
+                                        ref={fileRef}
+                                        accept=".xlsx,.xls,.csv"
+                                        className="mt-1 block w-full text-sm text-gray-500 file:mr-3 file:rounded-lg file:border-0 file:bg-navy-50 file:px-3 file:py-2 file:text-sm file:font-medium file:text-navy-700 hover:file:bg-navy-100 dark:text-gray-400 dark:file:bg-navy-700 dark:file:text-navy-200"
+                                    />
+                                </div>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                    Format: Tanggal, NIS (atau Nama), Jenis (setor/tarik), Jumlah, Keterangan (opsional).
+                                    <br />
+                                    <a href={route('transactions.template')} className="text-gold-600 hover:text-gold-700 dark:text-gold-400 underline">
+                                        Download Template Excel
+                                    </a>
+                                </p>
+                                <div className="flex gap-2">
+                                    <button type="submit" disabled={processing} className="btn-primary w-full justify-center">
+                                        {processing ? 'Mengimpor...' : 'Impor'}
+                                    </button>
+                                    <button type="button" onClick={() => setShowImport(false)} className="btn-secondary">
+                                        Batal
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
                 )}
 
@@ -194,7 +258,7 @@ export default function TransactionsIndex({
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Jenis</label>
                                 <select
                                     value={form.type}
-                                    onChange={(e) => setForm({ ...form, type: e.target.value })}
+                                    onChange={(e) => handleTypeChange(e.target.value)}
                                     className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-gold-500 focus:ring-gold-500 dark:border-gray-600 dark:bg-navy-800 dark:text-white"
                                 >
                                     <option value="setor">Setoran</option>
@@ -229,13 +293,14 @@ export default function TransactionsIndex({
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Keterangan</label>
-                            <textarea
-                                value={form.note}
-                                onChange={(e) => setForm({ ...form, note: e.target.value })}
-                                rows={2}
-                                className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-gold-500 focus:ring-gold-500 dark:border-gray-600 dark:bg-navy-800 dark:text-white"
-                            />
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Keterangan</label>
+                                <textarea
+                                    value={form.note}
+                                    onChange={(e) => setForm({ ...form, note: e.target.value })}
+                                    rows={2}
+                                    placeholder={form.type === 'setor' ? 'Setoran harian siswa' : 'Isi keterangan penarikan...'}
+                                    className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-gold-500 focus:ring-gold-500 dark:border-gray-600 dark:bg-navy-800 dark:text-white"
+                                />
                         </div>
 
                         <div className="flex gap-2">

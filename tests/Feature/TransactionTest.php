@@ -38,7 +38,8 @@ class TransactionTest extends TestCase
         $student = Student::factory()->create(['balance' => 0]);
         $mock = $this->createMock(TransactionService::class);
         $mock->expects($this->once())
-            ->method('createDeposit')
+            ->method('createTransaction')
+            ->with('setor', $this->arrayHasKey('student_id'))
             ->willReturn(Transaction::factory()->make([
                 'student_id' => $student->id,
                 'type' => 'setor',
@@ -63,7 +64,8 @@ class TransactionTest extends TestCase
         $student = Student::factory()->create(['balance' => 100000]);
         $mock = $this->createMock(TransactionService::class);
         $mock->expects($this->once())
-            ->method('createWithdrawal')
+            ->method('createTransaction')
+            ->with('tarik', $this->arrayHasKey('student_id'))
             ->willReturn(Transaction::factory()->make([
                 'student_id' => $student->id,
                 'type' => 'tarik',

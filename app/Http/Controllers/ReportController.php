@@ -101,6 +101,12 @@ class ReportController extends Controller
 
     public function bukuTabungan(Student $student): Response
     {
+        $user = auth()->user();
+        if ($user->hasRole('wali_kelas')) {
+            $allowedClassIds = $user->classes()->pluck('id');
+            abort_if(! $allowedClassIds->contains($student->class_id), 403, 'Anda tidak memiliki akses ke siswa ini.');
+        }
+
         $student->load('class:id,name');
         $transactions = $student->transactions()
             ->with('createdBy:id,name')

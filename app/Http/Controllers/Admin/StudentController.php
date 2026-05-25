@@ -12,7 +12,7 @@ use App\Models\Student;
 use App\Services\GamificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Cache;
 use Inertia\Inertia;
 use Inertia\Response;
 use Maatwebsite\Excel\Facades\Excel;
@@ -61,9 +61,12 @@ class StudentController extends Controller
 
     public function store(StoreStudentRequest $request): RedirectResponse
     {
-        $data = $request->validated();
-        $data['password'] = Hash::make('smkglobin');
-        Student::create($data);
+        $student = Student::create($request->validated());
+        $student->password = 'smkglobin';
+        $student->save();
+
+        Cache::forget('dashboard_stats_admin');
+        Cache::forget('dashboard_stats_wk_'.auth()->id());
 
         return back()->with('success', 'Siswa berhasil ditambahkan.');
     }
@@ -72,22 +75,32 @@ class StudentController extends Controller
     {
         $student->update($request->validated());
 
+        Cache::forget('dashboard_stats_admin');
+        Cache::forget('dashboard_stats_wk_'.auth()->id());
+
         return back()->with('success', 'Siswa berhasil diperbarui.');
     }
 
     public function destroy(Student $student): RedirectResponse
     {
+        $this->authorize('delete', $student);
+
         if ($student->transactions()->exists()) {
             return back()->with('error', 'Siswa memiliki riwayat transaksi dan tidak bisa dihapus.');
         }
 
         $student->delete();
 
+        Cache::forget('dashboard_stats_admin');
+        Cache::forget('dashboard_stats_wk_'.auth()->id());
+
         return back()->with('success', 'Siswa berhasil dihapus.');
     }
 
     public function import(Request $request): RedirectResponse
     {
+        $this->authorize('create', Student::class);
+
         $request->validate([
             'file' => 'required|file|mimes:xlsx,xls,csv',
         ]);
@@ -116,31 +129,22 @@ class StudentController extends Controller
 
     public function qrCode(Student $student): \Illuminate\Http\Response
     {
+        $download = request()->route()->named('*.download');
         $url = route('student.login', ['nis' => $student->nis]);
 
-        $qrCode = QrCode::format('svg')
-            ->size(300)
+        $format = $download ? 'png' : 'svg';
+        $size = $download ? 500 : 300;
+        $disposition = $download ? 'attachment' : 'inline';
+        $mime = $download ? 'image/png' : 'image/svg+xml';
+
+        $qrCode = QrCode::format($format)
+            ->size($size)
             ->errorCorrection('M')
             ->generate($url);
 
         return response($qrCode, 200, [
-            'Content-Type' => 'image/svg+xml',
-            'Content-Disposition' => 'inline; filename="qrcode-'.$student->nis.'.svg"',
-        ]);
-    }
-
-    public function qrCodeDownload(Student $student): \Illuminate\Http\Response
-    {
-        $url = route('student.login', ['nis' => $student->nis]);
-
-        $qrCode = QrCode::format('png')
-            ->size(500)
-            ->errorCorrection('M')
-            ->generate($url);
-
-        return response($qrCode, 200, [
-            'Content-Type' => 'image/png',
-            'Content-Disposition' => 'attachment; filename="qrcode-'.$student->nis.'.png"',
+            'Content-Type' => $mime,
+            'Content-Disposition' => $disposition.'; filename="qrcode-'.$student->nis.'.'.$format.'"',
         ]);
     }
 }

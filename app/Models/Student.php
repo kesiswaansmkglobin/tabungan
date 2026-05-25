@@ -20,9 +20,7 @@ class Student extends Model implements AuthenticatableContract
         'name',
         'phone',
         'class_id',
-        'balance',
         'qr_token',
-        'password',
     ];
 
     protected $hidden = [

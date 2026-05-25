@@ -15,84 +15,44 @@ class TransactionService
         private WhatsAppService $whatsapp,
     ) {}
 
-    public function createDeposit(array $data): Transaction
+    public function createTransaction(string $type, array $data): Transaction
     {
-        Cache::forget('dashboard_stats_admin');
-        Cache::forget('dashboard_stats_wk_'.auth()->id());
+        $this->clearDashboardCache();
 
-        return DB::transaction(function () use ($data) {
+        return DB::transaction(function () use ($type, $data) {
             $student = Student::lockForUpdate()->findOrFail($data['student_id']);
 
-            $balanceAfter = $student->balance + $data['amount'];
-
-            $transaction = Transaction::create([
-                'student_id' => $student->id,
-                'type' => 'setor',
-                'amount' => $data['amount'],
-                'balance_after' => $balanceAfter,
-                'transaction_date' => $data['transaction_date'] ?? now()->toDateString(),
-                'note' => $data['note'] ?? null,
-                'created_by' => auth()->id(),
-            ]);
-
-            $student->update(['balance' => $balanceAfter]);
-
-            $this->gamification->ensureProgress($student);
-            $this->gamification->addXp($student, 10);
-            $this->gamification->syncTier($student);
-            $this->gamification->checkQuests($student, 'deposit', ['amount' => $data['amount']]);
-            $this->gamification->checkQuests($student, 'savings_milestone');
-            if (Gate::allows('send-whatsapp')) {
-                $this->whatsapp->sendTransactionNotification($student, 'setor', $data['amount'], $balanceAfter);
-            }
-
-            activity()
-                ->performedOn($student)
-                ->causedBy(auth()->user())
-                ->withProperties([
-                    'transaction_id' => $transaction->id,
-                    'amount' => $data['amount'],
-                    'balance_after' => $balanceAfter,
-                ])
-                ->log('setor');
-
-            return $transaction;
-        });
-    }
-
-    public function createWithdrawal(array $data): Transaction
-    {
-        Cache::forget('dashboard_stats_admin');
-        Cache::forget('dashboard_stats_wk_'.auth()->id());
-
-        return DB::transaction(function () use ($data) {
-            $student = Student::lockForUpdate()->findOrFail($data['student_id']);
-
-            if ($student->balance < $data['amount']) {
+            if ($type === 'tarik' && $student->balance < $data['amount']) {
                 throw new \RuntimeException('Saldo siswa tidak mencukupi.');
             }
 
-            $balanceAfter = $student->balance - $data['amount'];
+            $balanceAfter = $type === 'setor'
+                ? $student->balance + $data['amount']
+                : $student->balance - $data['amount'];
+
+            $xpAmount = $type === 'setor' ? 10 : 5;
+            $questEvent = $type === 'setor' ? 'deposit' : 'withdrawal';
+            $defaultNote = $type === 'setor' ? 'Setoran harian siswa' : null;
 
             $transaction = Transaction::create([
                 'student_id' => $student->id,
-                'type' => 'tarik',
+                'type' => $type,
                 'amount' => $data['amount'],
                 'balance_after' => $balanceAfter,
                 'transaction_date' => $data['transaction_date'] ?? now()->toDateString(),
-                'note' => $data['note'] ?? null,
+                'note' => $data['note'] ?? $defaultNote,
                 'created_by' => auth()->id(),
             ]);
 
             $student->update(['balance' => $balanceAfter]);
 
             $this->gamification->ensureProgress($student);
-            $this->gamification->addXp($student, 5);
+            $this->gamification->addXp($student, $xpAmount);
             $this->gamification->syncTier($student);
-            $this->gamification->checkQuests($student, 'withdrawal', ['amount' => $data['amount']]);
+            $this->gamification->checkQuests($student, $questEvent, ['amount' => $data['amount']]);
             $this->gamification->checkQuests($student, 'savings_milestone');
             if (Gate::allows('send-whatsapp')) {
-                $this->whatsapp->sendTransactionNotification($student, 'tarik', $data['amount'], $balanceAfter);
+                $this->whatsapp->sendTransactionNotification($student, $type, $data['amount'], $balanceAfter);
             }
 
             activity()
@@ -103,7 +63,7 @@ class TransactionService
                     'amount' => $data['amount'],
                     'balance_after' => $balanceAfter,
                 ])
-                ->log('tarik');
+                ->log($type);
 
             return $transaction;
         });
@@ -111,8 +71,7 @@ class TransactionService
 
     public function updateTransaction(Transaction $transaction, array $data): Transaction
     {
-        Cache::forget('dashboard_stats_admin');
-        Cache::forget('dashboard_stats_wk_'.auth()->id());
+        $this->clearDashboardCache();
 
         return DB::transaction(function () use ($transaction, $data) {
             $student = Student::lockForUpdate()->findOrFail($transaction->student_id);
@@ -136,6 +95,8 @@ class TransactionService
                 throw new \RuntimeException('Saldo tidak boleh negatif setelah perubahan.');
             }
 
+            $this->recalculateBalanceAfter($student->id);
+
             $this->gamification->syncTier($student);
             $this->gamification->checkQuests($student, 'savings_milestone');
 
@@ -145,8 +106,7 @@ class TransactionService
 
     public function deleteTransaction(Transaction $transaction): void
     {
-        Cache::forget('dashboard_stats_admin');
-        Cache::forget('dashboard_stats_wk_'.auth()->id());
+        $this->clearDashboardCache();
 
         DB::transaction(function () use ($transaction) {
             $student = Student::lockForUpdate()->findOrFail($transaction->student_id);
@@ -165,6 +125,31 @@ class TransactionService
             $this->gamification->checkQuests($student, 'savings_milestone');
 
             $transaction->delete();
+
+            $this->recalculateBalanceAfter($student->id);
         });
+    }
+
+    private function clearDashboardCache(): void
+    {
+        Cache::forget('dashboard_stats_admin');
+        Cache::forget('dashboard_stats_wk_'.auth()->id());
+    }
+
+    private function recalculateBalanceAfter(int $studentId): void
+    {
+        $runningBalance = 0;
+
+        $transactions = Transaction::where('student_id', $studentId)
+            ->orderBy('transaction_date')
+            ->orderBy('id')
+            ->get();
+
+        foreach ($transactions as $t) {
+            $runningBalance += $t->type === 'setor' ? $t->amount : -$t->amount;
+            if ($t->balance_after !== $runningBalance) {
+                Transaction::where('id', $t->id)->update(['balance_after' => $runningBalance]);
+            }
+        }
     }
 }

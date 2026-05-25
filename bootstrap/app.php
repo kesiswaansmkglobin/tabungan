@@ -7,7 +7,6 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
-use Illuminate\Http\Middleware\TrustProxies;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -32,7 +31,11 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => RoleMiddleware::class,
         ]);
 
-        $middleware->trustProxies(at: '*');
+        $middleware->trustProxies(at: [
+            '192.168.0.0/16',
+            '10.0.0.0/8',
+            '172.16.0.0/12',
+        ]);
 
     })
     ->withExceptions(function (Exceptions $exceptions) {

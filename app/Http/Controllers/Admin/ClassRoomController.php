@@ -8,6 +8,7 @@ use App\Http\Requests\UpdateClassRequest;
 use App\Models\ClassRoom;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -46,6 +47,8 @@ class ClassRoomController extends Controller
 
     public function destroy(ClassRoom $class): RedirectResponse
     {
+        Gate::allows('delete', $class) || abort(403);
+
         if ($class->students()->exists()) {
             return back()->with('error', 'Kelas tidak bisa dihapus karena masih memiliki siswa.');
         }
