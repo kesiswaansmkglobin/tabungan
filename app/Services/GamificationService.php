@@ -116,9 +116,22 @@ class GamificationService
 
     public function ensureProgress(Student $student): StudentProgress
     {
-        return $student->progress ?? StudentProgress::create([
+        if ($student->progress) {
+            return $student->progress;
+        }
+
+        $tier = Tier::where('min_balance', '<=', $student->balance)
+            ->orderBy('min_balance', 'desc')
+            ->first();
+
+        $progress = StudentProgress::create([
             'student_id' => $student->id,
             'xp' => 0,
+            'tier_id' => $tier?->id,
         ]);
+
+        $student->setRelation('progress', $progress);
+
+        return $progress;
     }
 }

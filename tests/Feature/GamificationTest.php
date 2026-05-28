@@ -302,17 +302,20 @@ class GamificationTest extends TestCase
         $this->assertEquals($bronze->id, $student->progress->fresh()->tier_id);
     }
 
-    public function test_sync_tier_does_nothing_when_no_progress(): void
+    public function test_sync_tier_creates_progress_when_missing(): void
     {
-        Tier::factory()->create(['min_balance' => 0]);
+        $tier = Tier::factory()->create(['min_balance' => 0]);
         $student = Student::factory()->create(['balance' => 50000]);
         $student->progress()->delete();
         $student = $student->fresh();
+        $this->assertNull($student->progress);
 
         $service = app(GamificationService::class);
         $service->syncTier($student);
 
-        $this->assertNull($student->progress);
+        $student->load('progress');
+        $this->assertNotNull($student->progress);
+        $this->assertEquals($tier->id, $student->progress->tier_id);
     }
 
     // ─── GamificationService: checkQuests ───────────────────────────────
