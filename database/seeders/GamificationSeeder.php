@@ -19,7 +19,7 @@ class GamificationSeeder extends Seeder
             'title' => 'Rajin Menabung',
             'description' => 'Lakukan 5 kali setoran',
             'xp_reward' => 50,
-            'type' => 'deposit',
+            'type' => 'deposit_count',
             'criteria' => ['count' => 5],
             'active' => true,
         ]);
@@ -46,8 +46,8 @@ class GamificationSeeder extends Seeder
             'title' => 'Konsisten Menabung',
             'description' => 'Menabung 3 hari berturut-turut',
             'xp_reward' => 75,
-            'type' => 'deposit',
-            'criteria' => ['count' => 3, 'consecutive_days' => true],
+            'type' => 'streak',
+            'criteria' => ['days' => 3],
             'active' => true,
         ]);
     }

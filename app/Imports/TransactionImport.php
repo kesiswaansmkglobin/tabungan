@@ -22,16 +22,16 @@ class TransactionImport implements SkipsEmptyRows, ToCollection, WithBatchInsert
 
     private Collection $errors;
 
+    private int $userId;
+
     public function __construct()
     {
         $this->errors = collect();
+        $this->userId = auth()->id() ?? 1;
     }
 
     public function collection(Collection $rows)
     {
-        $this->nisCache = Student::pluck('id', 'nis')->toArray();
-        $this->nameCache = Student::pluck('id', 'name')->toArray();
-
         $transactions = [];
         $balanceAdjustments = [];
         $runningBalances = [];
@@ -109,7 +109,7 @@ class TransactionImport implements SkipsEmptyRows, ToCollection, WithBatchInsert
                 'balance_after' => $runningBalances[$studentId],
                 'transaction_date' => $tanggal,
                 'note' => $note,
-                'created_by' => auth()->id() ?? 1,
+                'created_by' => $this->userId,
                 'created_at' => now(),
                 'updated_at' => now(),
             ];
@@ -128,15 +128,11 @@ class TransactionImport implements SkipsEmptyRows, ToCollection, WithBatchInsert
 
         $studentIds = array_keys($balanceAdjustments);
 
-        DB::transaction(function () use ($transactions, $balanceAdjustments, $studentIds) {
+        DB::transaction(function () use ($transactions, $studentIds) {
             Student::whereIn('id', $studentIds)->lockForUpdate()->get();
 
             foreach (array_chunk($transactions, 100) as $chunk) {
                 Transaction::insert($chunk);
-            }
-
-            foreach ($balanceAdjustments as $studentId => $adjustment) {
-                Student::where('id', $studentId)->increment('balance', $adjustment);
             }
 
             $this->recalculateBalances();
@@ -145,9 +141,9 @@ class TransactionImport implements SkipsEmptyRows, ToCollection, WithBatchInsert
 
     private function recalculateBalances(): void
     {
-        $studentIds = Student::whereHas('transactions')->pluck('id');
+        $allStudentIds = Student::whereHas('transactions')->pluck('id');
 
-        foreach ($studentIds as $id) {
+        foreach ($allStudentIds as $id) {
             $runningBalance = 0;
             $updates = [];
 

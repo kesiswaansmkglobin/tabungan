@@ -31,9 +31,14 @@ class StudentAuthController extends Controller
 
         $token = $student->createToken('student-api')->plainTextToken;
 
-        $this->gamification->ensureProgress($student);
+        $progress = $this->gamification->ensureProgress($student);
+        $progress->update(['last_login_at' => now()]);
+
+        $loginCompleted = $this->gamification->checkQuests($student, 'login');
+        $milestoneCompleted = $this->gamification->checkQuests($student, 'savings_milestone');
 
         return response()->json([
+            'quests_completed' => array_merge($loginCompleted, $milestoneCompleted),
             'token' => $token,
             'student' => [
                 'id' => $student->id,

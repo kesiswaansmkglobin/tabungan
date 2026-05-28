@@ -1,6 +1,10 @@
 import '../css/app.css';
 import './bootstrap';
 
+if (!import.meta.env.SSR) {
+    import('./echo');
+}
+
 import { createInertiaApp } from '@inertiajs/react';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createRoot, hydrateRoot } from 'react-dom/client';

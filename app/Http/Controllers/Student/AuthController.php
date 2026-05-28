@@ -57,8 +57,13 @@ class AuthController extends Controller
         $progress = $this->gamification->ensureProgress($student);
         $progress->update(['last_login_at' => now()]);
 
-        $this->gamification->checkQuests($student, 'login');
-        $this->gamification->checkQuests($student, 'savings_milestone');
+        $loginCompleted = $this->gamification->checkQuests($student, 'login');
+        $milestoneCompleted = $this->gamification->checkQuests($student, 'savings_milestone');
+
+        $allCompleted = array_merge($loginCompleted, $milestoneCompleted);
+        if (! empty($allCompleted)) {
+            session()->flash('quests_completed', $allCompleted);
+        }
 
         return redirect()->intended(route('student.dashboard'));
     }
@@ -131,6 +136,8 @@ class AuthController extends Controller
             $xpProgress = 100;
         }
 
+        $questsCompleted = session()->pull('quests_completed', []);
+
         return Inertia::render('Student/Dashboard', [
             'student' => $student,
             'transactions' => $transactions,
@@ -157,6 +164,7 @@ class AuthController extends Controller
                 'color' => $t->color,
                 'min_balance' => $t->min_balance,
             ]),
+            'questsCompleted' => $questsCompleted,
         ]);
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Exports;
 
 use App\Models\Transaction;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Maatwebsite\Excel\Concerns\FromQuery;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
@@ -36,13 +37,13 @@ class TransactionsExport implements FromQuery, ShouldAutoSize, WithHeadings, Wit
             $query->where('transaction_date', '>=', $this->filters['date_from']);
         }
         if (! empty($this->filters['date_to'])) {
-            $query->where('transaction_date', '<=', $this->filters['date_to'].' 23:59:59');
+            $query->where('transaction_date', '<=', Carbon::parse($this->filters['date_to'])->endOfDay());
         }
         if ($this->allowedClassIds !== null) {
             $query->whereHas('student', fn ($q) => $q->whereIn('class_id', $this->allowedClassIds));
         }
 
-        return $query->latest('transaction_date');
+        return $query->orderByDesc('transaction_date')->orderByDesc('id');
     }
 
     public function headings(): array

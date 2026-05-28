@@ -19,12 +19,10 @@ class StudentsExport implements FromQuery, ShouldAutoSize, WithHeadings, WithMap
     {
         $query = Student::with('class:id,name');
 
-        if (! empty($this->filters['class_id'])) {
-            $query->where('class_id', $this->filters['class_id']);
-        }
-
         if (! empty($this->filters['class_ids'])) {
             $query->whereIn('class_id', $this->filters['class_ids']);
+        } elseif (! empty($this->filters['class_id'])) {
+            $query->where('class_id', $this->filters['class_id']);
         }
 
         return $query->orderBy('name');

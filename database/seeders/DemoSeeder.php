@@ -8,6 +8,7 @@ use App\Models\Transaction;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 
 class DemoSeeder extends Seeder
 {
@@ -54,12 +55,16 @@ class DemoSeeder extends Seeder
 
         $studentModels = [];
         foreach ($students as $s) {
-            $studentModels[$s['nis']] = Student::create([
+            $student = Student::create([
                 'nis' => $s['nis'],
                 'name' => $s['name'],
+                'phone' => '08'.fake()->numerify('##########'),
                 'class_id' => $classModels[$s['class']]->id,
-                'password' => 'smkglobin',
+                'qr_token' => 'demo-qr-'.$s['nis'],
             ]);
+            $student->password = 'smkglobin';
+            $student->save();
+            $studentModels[$s['nis']] = $student;
         }
 
         $transactions = [
@@ -84,24 +89,29 @@ class DemoSeeder extends Seeder
             ['nis' => '2024016', 'type' => 'setor', 'amount' => 25000, 'date' => '-3 days'],
         ];
 
-        foreach ($transactions as $t) {
-            $student = $studentModels[$t['nis']];
-            $prevBalance = $student->balance;
-            $balanceAfter = $t['type'] === 'setor'
-                ? $prevBalance + $t['amount']
-                : $prevBalance - $t['amount'];
+        DB::transaction(function () use ($transactions, $studentModels, $admin) {
+            foreach ($transactions as $t) {
+                $student = $studentModels[$t['nis']];
+                Student::lockForUpdate()->find($student->id);
 
-            Transaction::create([
-                'student_id' => $student->id,
-                'type' => $t['type'],
-                'amount' => $t['amount'],
-                'balance_after' => $balanceAfter,
-                'transaction_date' => Carbon::parse($t['date'])->format('Y-m-d'),
-                'created_by' => $admin->id,
-                'note' => $t['type'] === 'setor' ? 'Setoran tabungan' : 'Penarikan tabungan',
-            ]);
+                $prevBalance = $student->balance;
+                $balanceAfter = $t['type'] === 'setor'
+                    ? $prevBalance + $t['amount']
+                    : $prevBalance - $t['amount'];
 
-            $student->update(['balance' => $balanceAfter]);
-        }
+                Transaction::create([
+                    'student_id' => $student->id,
+                    'type' => $t['type'],
+                    'amount' => $t['amount'],
+                    'balance_after' => $balanceAfter,
+                    'transaction_date' => Carbon::parse($t['date'])->format('Y-m-d'),
+                    'created_by' => $admin->id,
+                    'note' => $t['type'] === 'setor' ? 'Setoran tabungan' : 'Penarikan tabungan',
+                ]);
+
+                $student->balance = $balanceAfter;
+                $student->save();
+            }
+        });
     }
 }

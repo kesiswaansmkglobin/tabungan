@@ -2,6 +2,7 @@ import { Link, usePage, router } from '@inertiajs/react';
 import { PropsWithChildren, ReactNode, useState } from 'react';
 import ApplicationLogo from '@/Components/ApplicationLogo';
 import Dropdown from '@/Components/Dropdown';
+import type { PageProps } from '@/types';
 
 interface NavItem {
     label: string;
@@ -20,6 +21,7 @@ const navItems: NavItem[] = [
     { label: 'Riwayat', href: '/history', icon: 'clock', roles: ['admin', 'staff', 'wali_kelas'] },
     { label: 'Laporan', href: '/reports', icon: 'chart', roles: ['admin', 'staff', 'wali_kelas'] },
     { label: 'Gamifikasi', href: '/admin/gamification', icon: 'trophy', roles: ['admin'] },
+    { label: 'Progress Siswa', href: '/admin/student-progress', icon: 'trending', roles: ['admin', 'staff'] },
     { label: 'Audit Log', href: '/admin/audit', icon: 'shield', roles: ['admin'] },
     { label: 'Manajemen User', href: '/admin/users', icon: 'settings', roles: ['admin'] },
     { label: 'Pengaturan', href: '/admin/settings', icon: 'database', roles: ['admin'] },
@@ -82,10 +84,15 @@ const icons: Record<string, ReactNode> = {
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
         </svg>
     ),
+    trending: (
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18 9 11.25l4.306 4.306a11.95 11.95 0 0 1 5.814-5.518l2.74-1.22m0 0-5.94-2.281m5.94 2.28-2.28 5.941" />
+        </svg>
+    ),
 };
 
 export default function AuthenticatedLayout({ children }: PropsWithChildren) {
-    const { auth, school } = usePage().props as any;
+    const { auth, school } = usePage<PageProps>().props;
     const user = auth.user;
     const role = user?.primary_role || 'admin';
     const [sidebarOpen, setSidebarOpen] = useState(false);

@@ -1,5 +1,5 @@
 import { Head, router } from '@inertiajs/react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface TierInfo {
     name: string;
@@ -37,7 +37,13 @@ interface QuestItem {
     completed: boolean;
 }
 
-export default function StudentDashboard({ student, transactions, stats, quests, nextTier, tierProgress, xpToNext, allTiers }: {
+interface QuestCompleted {
+    id: number;
+    title: string;
+    xp_reward: number;
+}
+
+export default function StudentDashboard({ student, transactions, stats, quests, nextTier, tierProgress, xpToNext, allTiers, questsCompleted = [] }: {
     student: Student;
     transactions: Transaction[];
     stats: { total_deposit: number; total_withdrawal: number; transaction_count: number };
@@ -46,9 +52,12 @@ export default function StudentDashboard({ student, transactions, stats, quests,
     tierProgress: number;
     xpToNext: number;
     allTiers: TierInfo[];
+    questsCompleted?: QuestCompleted[];
 }) {
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
     const [showWelcome, setShowWelcome] = useState(false);
+    const [showQuestNotif, setShowQuestNotif] = useState(questsCompleted.length > 0);
+    const [currentNotifIndex, setCurrentNotifIndex] = useState(0);
 
     useEffect(() => {
         const seen = sessionStorage.getItem('student_welcome_' + student.id);
@@ -56,6 +65,29 @@ export default function StudentDashboard({ student, transactions, stats, quests,
             setShowWelcome(true);
             sessionStorage.setItem('student_welcome_' + student.id, '1');
         }
+    }, []);
+
+    useEffect(() => {
+        if (!showQuestNotif || questsCompleted.length === 0) return;
+        const timer = setTimeout(() => {
+            if (currentNotifIndex < questsCompleted.length - 1) {
+                setCurrentNotifIndex(currentNotifIndex + 1);
+            } else {
+                setShowQuestNotif(false);
+            }
+        }, 4000);
+        return () => clearTimeout(timer);
+    }, [showQuestNotif, currentNotifIndex, questsCompleted.length]);
+
+    useEffect(() => {
+        if (!window.Echo) return;
+        const channel = window.Echo.private('student.' + student.id);
+        channel.listen('.transaction.updated', (e: any) => {
+            router.reload({ only: ['student', 'transactions', 'stats', 'quests', 'nextTier', 'tierProgress', 'xpToNext'] });
+        });
+        return () => {
+            channel.stopListening('.transaction.updated');
+        };
     }, []);
 
     function handleLogout() {
@@ -100,6 +132,32 @@ export default function StudentDashboard({ student, transactions, stats, quests,
     return (
         <div className="min-h-screen bg-gradient-to-br from-gray-900 via-navy-900 to-gray-900 text-white">
             <Head title="Dashboard Siswa" />
+
+            {/* Quest Completion Toast */}
+            {showQuestNotif && questsCompleted[currentNotifIndex] && (
+                <div className="fixed inset-x-0 top-4 z-[200] mx-auto flex max-w-md animate-slideDown items-center gap-3 rounded-2xl bg-gradient-to-r from-emerald-600 to-emerald-500 px-5 py-4 shadow-2xl shadow-emerald-900/50">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/20 text-2xl">
+                        🎉
+                    </div>
+                    <div className="min-w-0 flex-1">
+                        <p className="text-sm font-bold text-white">Misi Selesai!</p>
+                        <p className="text-sm text-emerald-100">{questsCompleted[currentNotifIndex].title}</p>
+                        <p className="text-xs text-emerald-200/80">+{questsCompleted[currentNotifIndex].xp_reward} XP</p>
+                    </div>
+                    <button
+                        onClick={() => {
+                            if (currentNotifIndex < questsCompleted.length - 1) {
+                                setCurrentNotifIndex(currentNotifIndex + 1);
+                            } else {
+                                setShowQuestNotif(false);
+                            }
+                        }}
+                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/20 text-sm text-white transition hover:bg-white/30"
+                    >
+                        ✕
+                    </button>
+                </div>
+            )}
 
             {/* Welcome Modal */}
             {showWelcome && (

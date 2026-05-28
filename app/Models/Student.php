@@ -20,6 +20,7 @@ class Student extends Model implements AuthenticatableContract
         'name',
         'phone',
         'class_id',
+        'balance',
         'qr_token',
     ];
 
@@ -32,6 +33,7 @@ class Student extends Model implements AuthenticatableContract
     {
         return [
             'password' => 'hashed',
+            'balance' => 'integer',
         ];
     }
 
@@ -48,5 +50,10 @@ class Student extends Model implements AuthenticatableContract
     public function progress(): HasOne
     {
         return $this->hasOne(StudentProgress::class);
+    }
+
+    public function questCompletions(): HasMany
+    {
+        return $this->hasMany(StudentQuestCompletion::class);
     }
 }

@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\QuestController;
 use App\Http\Controllers\Admin\SchoolDataController;
 use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\StudentController;
+use App\Http\Controllers\Admin\StudentProgressController;
 use App\Http\Controllers\Admin\TierController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\DashboardController;
@@ -72,6 +73,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::delete('/quests/{quest}', [QuestController::class, 'destroy'])->name('quests.destroy');
 
     Route::get('/gamification', [TierController::class, 'index'])->name('gamification');
+    Route::get('/student-progress', [StudentProgressController::class, 'index'])->name('student-progress');
     Route::get('/audit', [AuditController::class, 'index'])->name('audit');
 
     Route::get('/settings', [SettingsController::class, 'index'])->name('settings');

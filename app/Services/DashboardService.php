@@ -5,34 +5,41 @@ namespace App\Services;
 use App\Models\Student;
 use App\Models\Transaction;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 
 class DashboardService
 {
-    public function stats(?Collection $allowedClassIds = null): array
+    public function stats(?Collection $allowedClassIds = null, ?int $userId = null): array
     {
-        $studentQuery = Student::query();
-        $transactionQuery = Transaction::query();
+        $cacheKey = $allowedClassIds !== null
+            ? 'dashboard_stats_wk_'.($userId ?? auth()->id())
+            : 'dashboard_stats_admin';
 
-        if ($allowedClassIds !== null) {
-            $studentQuery->whereIn('class_id', $allowedClassIds);
-            $transactionQuery->whereHas('student', fn ($q) => $q->whereIn('class_id', $allowedClassIds));
-        }
+        return Cache::remember($cacheKey, 60, function () use ($allowedClassIds) {
+            $studentQuery = Student::query();
+            $transactionQuery = Transaction::query();
 
-        $monthlyTrend = $this->buildMonthlyTrend(clone $transactionQuery);
+            if ($allowedClassIds !== null) {
+                $studentQuery->whereIn('class_id', $allowedClassIds);
+                $transactionQuery->whereHas('student', fn ($q) => $q->whereIn('class_id', $allowedClassIds));
+            }
 
-        return [
-            'totalStudents' => (clone $studentQuery)->count(),
-            'totalTransactions' => (clone $transactionQuery)->count(),
-            'totalBalance' => (clone $studentQuery)->sum('balance'),
-            'todayTransactions' => (clone $transactionQuery)->whereDate('transaction_date', today())->count(),
-            'monthlyTrend' => $monthlyTrend,
-            'recentTransactions' => (clone $transactionQuery)
-                ->with('student:id,nis,name')
-                ->orderByDesc('transaction_date')
-                ->take(5)
-                ->get()
-                ->each(fn ($t) => $t->setAppends(['created_by_user'])),
-        ];
+            $monthlyTrend = $this->buildMonthlyTrend(clone $transactionQuery);
+
+            return [
+                'totalStudents' => (clone $studentQuery)->count(),
+                'totalTransactions' => (clone $transactionQuery)->count(),
+                'totalBalance' => (clone $studentQuery)->sum('balance'),
+                'todayTransactions' => (clone $transactionQuery)->whereDate('transaction_date', today())->count(),
+                'monthlyTrend' => $monthlyTrend,
+                'recentTransactions' => (clone $transactionQuery)
+                    ->with('student:id,nis,name')
+                    ->orderByDesc('transaction_date')
+                    ->take(5)
+                    ->get()
+                    ->each(fn ($t) => $t->setAppends(['created_by_user'])),
+            ];
+        });
     }
 
     private function buildMonthlyTrend($transactionQuery): Collection

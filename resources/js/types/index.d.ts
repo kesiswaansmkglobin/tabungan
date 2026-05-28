@@ -9,6 +9,11 @@ export interface User {
     role_names?: string[];
 }
 
+export interface Flash {
+    success?: string;
+    error?: string;
+}
+
 export type PageProps<
     T extends Record<string, unknown> = Record<string, unknown>,
 > = T & {
@@ -16,4 +21,9 @@ export type PageProps<
         user: User;
     };
     ziggy: Config & { location: string };
+    flash?: Flash;
+    school?: {
+        name: string;
+        logo_url?: string;
+    } | null;
 };

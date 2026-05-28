@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Events\StudentTransactionUpdated;
 use App\Models\Student;
 use App\Models\Transaction;
 use Illuminate\Support\Facades\Cache;
@@ -44,13 +45,17 @@ class TransactionService
                 'created_by' => auth()->id(),
             ]);
 
-            $student->update(['balance' => $balanceAfter]);
+            $student->balance = $balanceAfter;
+            $student->save();
 
             $this->gamification->ensureProgress($student);
             $this->gamification->addXp($student, $xpAmount);
             $this->gamification->syncTier($student);
-            $this->gamification->checkQuests($student, $questEvent, ['amount' => $data['amount']]);
+            $questsCompleted = $this->gamification->checkQuests($student, $questEvent, ['amount' => $data['amount']]);
             $this->gamification->checkQuests($student, 'savings_milestone');
+
+            StudentTransactionUpdated::dispatch($student, $questsCompleted);
+
             if (Gate::allows('send-whatsapp')) {
                 $this->whatsapp->sendTransactionNotification($student, $type, $data['amount'], $balanceAfter);
             }
@@ -89,16 +94,31 @@ class TransactionService
                 ? $oldAmount - $transaction->amount
                 : $transaction->amount - $oldAmount;
 
-            $student->update(['balance' => $student->balance - $diff]);
+            $student->balance = $student->balance - $diff;
 
             if ($student->balance < 0) {
                 throw new \RuntimeException('Saldo tidak boleh negatif setelah perubahan.');
             }
 
+            $student->save();
+
             $this->recalculateBalanceAfter($student->id);
 
             $this->gamification->syncTier($student);
             $this->gamification->checkQuests($student, 'savings_milestone');
+
+            StudentTransactionUpdated::dispatch($student);
+
+            activity()
+                ->performedOn($transaction)
+                ->causedBy(auth()->user())
+                ->withProperties([
+                    'old_amount' => $oldAmount,
+                    'new_amount' => $transaction->amount,
+                    'old_type' => $oldType,
+                    'note' => $data['note'] ?? $transaction->note,
+                ])
+                ->log('updated');
 
             return $transaction;
         });
@@ -115,18 +135,32 @@ class TransactionService
                 ? -$transaction->amount
                 : $transaction->amount;
 
-            $student->update(['balance' => $student->balance + $balanceAdjustment]);
+            $student->balance = $student->balance + $balanceAdjustment;
 
             if ($student->balance < 0) {
                 throw new \RuntimeException('Penghapusan transaksi menyebabkan saldo negatif.');
             }
 
+            $student->save();
+
             $this->gamification->syncTier($student);
             $this->gamification->checkQuests($student, 'savings_milestone');
+
+            StudentTransactionUpdated::dispatch($student);
 
             $transaction->delete();
 
             $this->recalculateBalanceAfter($student->id);
+
+            activity()
+                ->performedOn($student)
+                ->causedBy(auth()->user())
+                ->withProperties([
+                    'deleted_transaction_id' => $transaction->id,
+                    'amount' => $transaction->amount,
+                    'type' => $transaction->type,
+                ])
+                ->log('deleted');
         });
     }
 

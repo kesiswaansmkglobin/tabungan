@@ -13,13 +13,11 @@ class TransactionFactory extends Factory
 
     public function definition(): array
     {
-        $amount = fake()->numberBetween(1000, 100000);
-
         return [
             'student_id' => Student::factory(),
             'type' => 'setor',
-            'amount' => $amount,
-            'balance_after' => $amount,
+            'amount' => fake()->numberBetween(1000, 100000),
+            'balance_after' => fn (array $attrs) => $attrs['type'] === 'setor' ? $attrs['amount'] : -$attrs['amount'],
             'transaction_date' => fake()->date(),
             'note' => fake()->optional()->sentence(),
             'created_by' => User::factory(),
@@ -33,6 +31,9 @@ class TransactionFactory extends Factory
 
     public function tarik(): static
     {
-        return $this->state(fn (array $attrs) => ['type' => 'tarik']);
+        return $this->state(fn () => [
+            'type' => 'tarik',
+            'balance_after' => -$this->attributes['amount'] ?? fake()->numberBetween(1000, 100000),
+        ]);
     }
 }

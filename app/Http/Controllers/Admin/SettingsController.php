@@ -96,7 +96,7 @@ class SettingsController extends Controller
                 ->withProperties(['filename' => $filename, 'size' => strlen($sql)])
                 ->log('backup');
 
-            return response()->download($path, $filename)->deleteFileAfterSend(true);
+            return response()->download($path, $filename);
         } catch (\Exception $e) {
             if ($request->expectsJson()) {
                 return response()->json(['error' => 'Gagal backup database: '.$e->getMessage()], 500);

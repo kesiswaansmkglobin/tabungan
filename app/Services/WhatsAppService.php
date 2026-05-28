@@ -66,18 +66,16 @@ class WhatsAppService
 
     private function send(Student $student, string $message): void
     {
-        $target = $student->phone ?? $student->nis;
-
-        if (! $target) {
-            Log::warning('[WhatsApp] Tidak ada nomor target', ['student_id' => $student->id]);
+        if (! $student->phone) {
+            Log::info('[WhatsApp] Nomor telepon tidak tersedia, notifikasi dilewati', ['student_id' => $student->id]);
 
             return;
         }
 
-        $target = $this->normalizePhone($target);
+        $target = $this->normalizePhone($student->phone);
 
         if (! $this->isValidPhone($target)) {
-            Log::warning('[WhatsApp] Nomor tidak valid (mungkin NIS)', [
+            Log::warning('[WhatsApp] Nomor tidak valid', [
                 'student_id' => $student->id,
                 'target' => $target,
             ]);

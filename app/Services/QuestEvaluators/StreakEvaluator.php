@@ -27,9 +27,21 @@ class StreakEvaluator implements QuestEvaluatorInterface
             return false;
         }
 
-        $first = Carbon::parse($dates->first());
-        $last = Carbon::parse($dates->last());
+        $consecutive = 1;
+        $maxStreak = 1;
+        $prev = Carbon::parse($dates->first());
 
-        return $first->diffInDays($last) + 1 >= $targetDays;
+        for ($i = 1; $i < $dates->count(); $i++) {
+            $curr = Carbon::parse($dates[$i]);
+            if ((int) $prev->diffInDays($curr) === 1) {
+                $consecutive++;
+                $maxStreak = max($maxStreak, $consecutive);
+            } else {
+                $consecutive = 1;
+            }
+            $prev = $curr;
+        }
+
+        return $maxStreak >= $targetDays;
     }
 }

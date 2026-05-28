@@ -18,8 +18,23 @@ class Tier extends Model
         'order_index',
     ];
 
+    protected function casts(): array
+    {
+        return [
+            'min_balance' => 'integer',
+            'order_index' => 'integer',
+        ];
+    }
+
     public function studentProgresses(): HasMany
     {
         return $this->hasMany(StudentProgress::class);
+    }
+
+    public function nextTier(): ?Tier
+    {
+        return Tier::where('min_balance', '>', $this->min_balance)
+            ->orderBy('min_balance')
+            ->first();
     }
 }

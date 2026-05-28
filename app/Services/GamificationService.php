@@ -54,7 +54,7 @@ class GamificationService
         $progress->increment('xp', $xp);
     }
 
-    public function checkQuests(Student $student, string $event, array $context = []): void
+    public function checkQuests(Student $student, string $event, array $context = []): array
     {
         $quests = Quest::where('active', true)
             ->where(function ($q) use ($event) {
@@ -64,7 +64,7 @@ class GamificationService
             ->get();
 
         if ($quests->isEmpty()) {
-            return;
+            return [];
         }
 
         $completedIds = StudentQuestCompletion::where('student_id', $student->id)
@@ -73,6 +73,8 @@ class GamificationService
             ->toArray();
 
         $context['transaction_count'] = $student->transactions()->count();
+
+        $newCompletions = [];
 
         foreach ($quests as $quest) {
             if (in_array($quest->id, $completedIds)) {
@@ -87,8 +89,16 @@ class GamificationService
                 ]);
 
                 $this->addXp($student, $quest->xp_reward);
+
+                $newCompletions[] = [
+                    'id' => $quest->id,
+                    'title' => $quest->title,
+                    'xp_reward' => $quest->xp_reward,
+                ];
             }
         }
+
+        return $newCompletions;
     }
 
     private function evaluate(Student $student, Quest $quest, array $context): bool

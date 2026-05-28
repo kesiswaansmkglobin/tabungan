@@ -3,6 +3,7 @@
 namespace App\Traits;
 
 use App\Models\UserRole;
+use Illuminate\Support\Facades\DB;
 
 trait HasRoles
 {
@@ -33,10 +34,12 @@ trait HasRoles
 
     public function syncRoles(array $roles): void
     {
-        $this->roles()->delete();
-        foreach ($roles as $role) {
-            $this->assignRole($role);
-        }
+        DB::transaction(function () use ($roles) {
+            $this->roles()->delete();
+            foreach ($roles as $role) {
+                $this->assignRole($role);
+            }
+        });
     }
 
     public function getRoleNamesAttribute(): array
