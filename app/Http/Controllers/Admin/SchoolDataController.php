@@ -35,14 +35,23 @@ class SchoolDataController extends Controller
         $school = SchoolData::firstOrCreate(['id' => 1]);
 
         if ($request->hasFile('logo')) {
+            if ($school->logo_path && Storage::disk('public')->exists($school->logo_path)) {
+                Storage::disk('public')->delete($school->logo_path);
+            }
             $validated['logo_path'] = $request->file('logo')->store('school', 'public');
         }
 
         if ($request->hasFile('signature')) {
+            if ($school->signature_path && Storage::disk('public')->exists($school->signature_path)) {
+                Storage::disk('public')->delete($school->signature_path);
+            }
             $validated['signature_path'] = $request->file('signature')->store('school', 'public');
         }
 
         if ($request->hasFile('treasurer_signature')) {
+            if ($school->treasurer_signature_path && Storage::disk('public')->exists($school->treasurer_signature_path)) {
+                Storage::disk('public')->delete($school->treasurer_signature_path);
+            }
             $validated['treasurer_signature_path'] = $request->file('treasurer_signature')->store('school', 'public');
         }
 

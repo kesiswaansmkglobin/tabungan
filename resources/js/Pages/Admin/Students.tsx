@@ -22,7 +22,7 @@ export default function Students({ students, classes, filters, canManage = true 
     const { errors, flash } = usePage().props as any;
     const [showForm, setShowForm] = useState(false);
     const [editing, setEditing] = useState<Student | null>(null);
-    const [form, setForm] = useState({ nis: '', name: '', phone: '', class_id: '' });
+    const [form, setForm] = useState({ nis: '', name: '', phone: '', password: '', class_id: '' });
     const [qrStudent, setQrStudent] = useState<Student | null>(null);
     const [showImport, setShowImport] = useState(false);
     const fileRef = useRef<HTMLInputElement>(null);
@@ -34,20 +34,21 @@ export default function Students({ students, classes, filters, canManage = true 
 
     function openCreate() {
         setEditing(null);
-        setForm({ nis: '', name: '', phone: '', class_id: '' });
+        setForm({ nis: '', name: '', phone: '', password: '', class_id: '' });
         setShowForm(true);
     }
 
     function openEdit(s: Student) {
         setEditing(s);
-        setForm({ nis: s.nis, name: s.name, phone: s.phone ?? '', class_id: s.class_id.toString() });
+        setForm({ nis: s.nis, name: s.name, phone: s.phone ?? '', password: '', class_id: s.class_id.toString() });
         setShowForm(true);
     }
 
     function handleSubmit(e: FormEvent) {
         e.preventDefault();
         setProcessing(true);
-        const data = { nis: form.nis, name: form.name, phone: form.phone || null, class_id: parseInt(form.class_id) };
+        const data: Record<string, any> = { nis: form.nis, name: form.name, phone: form.phone || null, class_id: parseInt(form.class_id) };
+        if (form.password) data.password = form.password;
         if (editing) {
             router.patch(route('admin.students.update', editing.id), data, {
                 onFinish: () => setProcessing(false),
@@ -174,6 +175,18 @@ export default function Students({ students, classes, filters, canManage = true 
                                 className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-gold-500 focus:ring-gold-500 dark:border-gray-600 dark:bg-navy-800 dark:text-white"
                             />
                             {errors?.phone && <p className="mt-1 text-sm text-red-600">{errors.phone}</p>}
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Password <span className="text-gray-400 font-normal">(kosongkan untuk default <code>smkglobin</code>)</span></label>
+                            <input
+                                type="password"
+                                value={form.password}
+                                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                                placeholder="Biarkan kosong untuk password default"
+                                className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-gold-500 focus:ring-gold-500 dark:border-gray-600 dark:bg-navy-800 dark:text-white"
+                            />
+                            {errors?.password && <p className="mt-1 text-sm text-red-600">{errors.password}</p>}
                         </div>
 
                         <div>

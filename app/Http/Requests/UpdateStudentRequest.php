@@ -19,6 +19,7 @@ class UpdateStudentRequest extends FormRequest
             'nis' => 'required|string|max:20|unique:students,nis,'.$student->id,
             'name' => 'required|string|max:255',
             'phone' => 'nullable|string|max:20|regex:/^(\+62|62|0)8[0-9]{7,12}$/',
+            'password' => 'nullable|string|min:4|max:255',
             'class_id' => 'required|exists:classes,id',
         ];
     }

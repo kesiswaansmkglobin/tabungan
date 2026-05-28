@@ -29,6 +29,7 @@ class StudentImport implements SkipsEmptyRows, ToCollection, WithChunkReading, W
             $nis = $row['nis'] ?? $row['NIS'] ?? $row['n_i_s'] ?? null;
             $nama = $row['nama'] ?? $row['Nama'] ?? null;
             $phone = $row['phone'] ?? $row['Phone'] ?? $row['no_hp'] ?? null;
+            $password = $row['password'] ?? $row['Password'] ?? null;
 
             if (! $nis || ! $nama || ! $kelas) {
                 continue;
@@ -51,9 +52,8 @@ class StudentImport implements SkipsEmptyRows, ToCollection, WithChunkReading, W
                 'name' => $nama,
                 'phone' => $phone,
                 'class_id' => $classId,
+                'password' => $password ? Hash::make($password) : Hash::make('smkglobin'),
             ]);
-            $student->password = Hash::make('smkglobin');
-            $student->save();
         }
     }
 
@@ -65,6 +65,7 @@ class StudentImport implements SkipsEmptyRows, ToCollection, WithChunkReading, W
             'kelas' => 'required|string|max:100',
             'phone' => 'nullable|string|max:20|regex:/^(\+62|62|0)8[0-9]{7,12}$/',
             'no_hp' => 'nullable|string|max:20|regex:/^(\+62|62|0)8[0-9]{7,12}$/',
+            'password' => 'nullable|string|min:4|max:255',
         ];
     }
 

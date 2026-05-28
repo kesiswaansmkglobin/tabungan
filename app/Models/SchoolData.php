@@ -26,16 +26,16 @@ class SchoolData extends Model
 
     public function getLogoUrlAttribute(): ?string
     {
-        return $this->logo_path ? asset('storage/'.$this->logo_path) : null;
+        return $this->logo_path ? url('storage/'.$this->logo_path) : null;
     }
 
     public function getSignatureUrlAttribute(): ?string
     {
-        return $this->signature_path ? asset('storage/'.$this->signature_path) : null;
+        return $this->signature_path ? url('storage/'.$this->signature_path) : null;
     }
 
     public function getTreasurerSignatureUrlAttribute(): ?string
     {
-        return $this->treasurer_signature_path ? asset('storage/'.$this->treasurer_signature_path) : null;
+        return $this->treasurer_signature_path ? url('storage/'.$this->treasurer_signature_path) : null;
     }
 }

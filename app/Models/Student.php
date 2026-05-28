@@ -21,6 +21,7 @@ class Student extends Model implements AuthenticatableContract
         'phone',
         'class_id',
         'balance',
+        'password',
         'qr_token',
     ];
 

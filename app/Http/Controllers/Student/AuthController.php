@@ -57,6 +57,8 @@ class AuthController extends Controller
         $progress = $this->gamification->ensureProgress($student);
         $progress->update(['last_login_at' => now()]);
 
+        $this->gamification->syncTier($student);
+
         $loginCompleted = $this->gamification->checkQuests($student, 'login');
         $milestoneCompleted = $this->gamification->checkQuests($student, 'savings_milestone');
 

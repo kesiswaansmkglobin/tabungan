@@ -52,9 +52,9 @@ class TransactionService
             $this->gamification->addXp($student, $xpAmount);
             $this->gamification->syncTier($student);
             $questsCompleted = $this->gamification->checkQuests($student, $questEvent, ['amount' => $data['amount']]);
-            $this->gamification->checkQuests($student, 'savings_milestone');
+            $milestoneCompleted = $this->gamification->checkQuests($student, 'savings_milestone');
 
-            StudentTransactionUpdated::dispatch($student, $questsCompleted);
+            StudentTransactionUpdated::dispatch($student, array_merge($questsCompleted, $milestoneCompleted));
 
             if (Gate::allows('send-whatsapp')) {
                 $this->whatsapp->sendTransactionNotification($student, $type, $data['amount'], $balanceAfter);
@@ -104,10 +104,11 @@ class TransactionService
 
             $this->recalculateBalanceAfter($student->id);
 
+            $this->gamification->ensureProgress($student);
             $this->gamification->syncTier($student);
-            $this->gamification->checkQuests($student, 'savings_milestone');
+            $questsCompleted = $this->gamification->checkQuests($student, 'savings_milestone');
 
-            StudentTransactionUpdated::dispatch($student);
+            StudentTransactionUpdated::dispatch($student, $questsCompleted);
 
             activity()
                 ->performedOn($transaction)
@@ -143,10 +144,11 @@ class TransactionService
 
             $student->save();
 
+            $this->gamification->ensureProgress($student);
             $this->gamification->syncTier($student);
-            $this->gamification->checkQuests($student, 'savings_milestone');
+            $questsCompleted = $this->gamification->checkQuests($student, 'savings_milestone');
 
-            StudentTransactionUpdated::dispatch($student);
+            StudentTransactionUpdated::dispatch($student, $questsCompleted);
 
             $transaction->delete();
 

@@ -37,11 +37,7 @@ class GamificationService
             ->orderBy('min_balance', 'desc')
             ->first();
 
-        $progress = $student->progress;
-
-        if (! $progress) {
-            return;
-        }
+        $progress = $this->ensureProgress($student);
 
         if ($tier && $progress->tier_id !== $tier->id) {
             $progress->update(['tier_id' => $tier->id]);

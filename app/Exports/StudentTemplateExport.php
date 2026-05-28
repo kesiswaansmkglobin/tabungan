@@ -13,13 +13,13 @@ class StudentTemplateExport implements FromArray, ShouldAutoSize, WithHeadings, 
     public function array(): array
     {
         return [
-            ['123456', 'Contoh Siswa', '08123456789', 'XII RPL 1'],
+            ['123456', 'Contoh Siswa', '08123456789', 'smkglobin', 'XII RPL 1'],
         ];
     }
 
     public function headings(): array
     {
-        return ['nis', 'nama', 'phone', 'kelas'];
+        return ['nis', 'nama', 'phone', 'password', 'kelas'];
     }
 
     public function styles(Worksheet $sheet)

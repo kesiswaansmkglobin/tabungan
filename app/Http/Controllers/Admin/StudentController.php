@@ -61,9 +61,17 @@ class StudentController extends Controller
 
     public function store(StoreStudentRequest $request): RedirectResponse
     {
-        $student = Student::create($request->validated());
-        $student->password = 'smkglobin';
+        $data = $request->validated();
+        $password = $data['password'] ?? null;
+        unset($data['password']);
+
+        $student = Student::create($data);
+        $student->password = $password ?: 'smkglobin';
         $student->save();
+        $student->refresh();
+
+        $this->gamification->ensureProgress($student);
+        $this->gamification->syncTier($student);
 
         Cache::forget('dashboard_stats_admin');
         Cache::forget('dashboard_stats_wk_'.auth()->id());
@@ -73,7 +81,17 @@ class StudentController extends Controller
 
     public function update(UpdateStudentRequest $request, Student $student): RedirectResponse
     {
-        $student->update($request->validated());
+        $data = $request->validated();
+
+        if (! empty($data['password'])) {
+            $student->password = $data['password'];
+            $student->save();
+        }
+        unset($data['password']);
+
+        $student->update($data);
+
+        $this->gamification->syncTier($student);
 
         Cache::forget('dashboard_stats_admin');
         Cache::forget('dashboard_stats_wk_'.auth()->id());
